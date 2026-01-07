@@ -132,46 +132,33 @@ class _AuthPageState extends State<AuthPage> {
   Future<void> _googleSignIn() async {
     try {
       setState(() => _isLoading = true);
-      
-      // NOTE: You need to set these keys or configure them in platform specific files
-      // For Android, just SHA-1 in Cloud Console + Web Client ID logic usually works.
-      const webClientId = '98809686126-fsd4f6o8f6185opt6cdg53pba3996rpt.apps.googleusercontent.com'; 
+
+      // Web: Use Supabase Redirect Flow
+      if (kIsWeb) {
+        await Supabase.instance.client.auth.signInWithOAuth(
+          OAuthProvider.google,
+          redirectTo: 'http://localhost:3000',
+        );
+        return;
+      }
+
+      // Native (Android/iOS): Use GoogleSignIn package
+      const webClientId = '98809686126-i239d63enne5kb94tdf2c1nj7gp8c6di.apps.googleusercontent.com';
       const iosClientId = '98809686126-fsd4f6o8f6185opt6cdg53pba3996rpt.apps.googleusercontent.com';
 
-      // NOTE: serverClientId is necessary for Android to get the ID Token for Supabase.
-      // clientId should be null on Android (it uses the SHA-1 registered in Cloud Console).
-      // clientId IS required on iOS.
-      
-      String? clientId;
-      String? serverClientId;
-      
-      if (kIsWeb) {
-        clientId = webClientId;
-        serverClientId = null;
-      } else if (defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.macOS) {
-        clientId = iosClientId;
-        serverClientId = webClientId;
-      } else {
-        // Android and others
-        clientId = null;
-        serverClientId = webClientId;
-       }
-
       final GoogleSignIn googleSignIn = GoogleSignIn(
-        clientId: clientId,
-        serverClientId: serverClientId,
+        clientId: defaultTargetPlatform == TargetPlatform.iOS ? iosClientId : null,
+        serverClientId: webClientId,
+        scopes: ['email', 'profile', 'openid'],
       );
-      
-      // Ensure previous sign out to force account picker
-      // await googleSignIn.signOut(); 
 
       final googleUser = await googleSignIn.signIn();
       final googleAuth = await googleUser?.authentication;
-      
+
       if (googleAuth == null) {
         return; // Cancelled
       }
-      
+
       final accessToken = googleAuth.accessToken;
       final idToken = googleAuth.idToken;
 
@@ -184,13 +171,13 @@ class _AuthPageState extends State<AuthPage> {
         idToken: idToken,
         accessToken: accessToken,
       );
-      
+
       if (mounted) {
-         context.go('/');
+        context.go('/');
       }
     } catch (e) {
       if (mounted) {
-         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Google Login Error: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Google Login Error: $e')));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
