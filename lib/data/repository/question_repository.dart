@@ -14,7 +14,8 @@ class QuestionRepository {
           .from('questions') // テーブル名を直接指定(定数がなければ)
           .select()
           .eq('exam_count', examCount)
-          .order('question_number', ascending: true);
+          .order('question_number', ascending: true)
+          .timeout(const Duration(seconds: 10));
 
       // 【修正ポイント】nullなら空リストにする (?? [])
       final data = response as List<dynamic>? ?? [];
@@ -32,7 +33,8 @@ class QuestionRepository {
       final response = await _client
           .from('questions')
           .select()
-          .eq('category', category);
+          .eq('category', category)
+          .timeout(const Duration(seconds: 10));
 
       final data = response as List<dynamic>? ?? [];
       final questions = data.map((json) => Question.fromJson(json)).toList();
@@ -53,7 +55,8 @@ class QuestionRepository {
       final mistakeResponse = await _client
           .from('user_mistakes')
           .select('question_id')
-          .eq('user_id', userId);
+          .eq('user_id', userId)
+          .timeout(const Duration(seconds: 10));
 
       final mistakeList = mistakeResponse as List<dynamic>? ?? [];
       if (mistakeList.isEmpty) return [];
@@ -141,11 +144,59 @@ class QuestionRepository {
           .toSet()
           .toList();
           
-      all.sort();
+      all.sort((a, b) {
+        final indexA = _categoryOrder.indexOf(a);
+        final indexB = _categoryOrder.indexOf(b);
+        
+        // Handle items not in the list (put them at the end)
+        if (indexA == -1 && indexB == -1) return a.compareTo(b);
+        if (indexA == -1) return 1;
+        if (indexB == -1) return -1;
+        
+        return indexA.compareTo(indexB);
+      });
       return all;
     } catch (e) {
       print('Error fetching categories: $e');
       return [];
+    }
+  }
+
+  static const _categoryOrder = [
+    '特許法',
+    '実用新案法',
+    '意匠法',
+    '商標法',
+    '著作権法',
+    '不正競争防止法',
+    '種苗法',
+    '条約',
+    'その他',
+  ];
+  // --- 7. 間違いを削除 ---
+  Future<void> deleteMistake(String userId, int questionId) async {
+    try {
+      await _client
+          .from(AppConstants.userMistakesTable)
+          .delete()
+          .eq('user_id', userId)
+          .eq('question_id', questionId);
+    } catch (e) {
+      print('Error deleting mistake: $e');
+      rethrow;
+    }
+  }
+
+  // --- 8. 間違いを全削除（リセット） ---
+  Future<void> deleteAllMistakes(String userId) async {
+    try {
+      await _client
+          .from(AppConstants.userMistakesTable)
+          .delete()
+          .eq('user_id', userId);
+    } catch (e) {
+      print('Error deleting all mistakes: $e');
+      rethrow;
     }
   }
 }

@@ -28,6 +28,18 @@ class _AuthPageState extends State<AuthPage> {
       final email = _emailController.text.trim();
       final password = _passwordController.text.trim();
 
+      if (email.isEmpty || password.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('メールアドレスとパスワードを入力してください'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+
       if (_isLogin) {
         // ログイン処理
         await Supabase.instance.client.auth.signInWithPassword(
@@ -137,7 +149,7 @@ class _AuthPageState extends State<AuthPage> {
       if (kIsWeb) {
         await Supabase.instance.client.auth.signInWithOAuth(
           OAuthProvider.google,
-          redirectTo: 'http://localhost:3000',
+          redirectTo: kIsWeb ? Uri.base.origin : 'http://localhost:3000',
         );
         return;
       }

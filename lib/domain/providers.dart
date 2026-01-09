@@ -41,6 +41,7 @@ class QuizState {
   final String? error;
   final int correctCount;
   final int answeredCount;
+  final bool isInitial;
 
   const QuizState({
     this.questions = const [],
@@ -49,6 +50,7 @@ class QuizState {
     this.error,
     this.correctCount = 0,
     this.answeredCount = 0,
+    this.isInitial = false,
   });
 
   Question? get currentQuestion => 
@@ -63,6 +65,7 @@ class QuizState {
     String? error,
     int? correctCount,
     int? answeredCount,
+    bool? isInitial,
   }) {
     return QuizState(
       questions: questions ?? this.questions,
@@ -71,6 +74,7 @@ class QuizState {
       error: error,
       correctCount: correctCount ?? this.correctCount,
       answeredCount: answeredCount ?? this.answeredCount,
+      isInitial: isInitial ?? this.isInitial,
     );
   }
 }
@@ -79,28 +83,41 @@ class QuizNotifier extends StateNotifier<QuizState> {
   final QuestionRepository _repository;
   final String _userId;
 
-  QuizNotifier(this._repository, this._userId) : super(const QuizState());
+  QuizNotifier(this._repository, this._userId) : super(const QuizState(isInitial: true));
 
   Future<void> loadQuestions(QuizMode mode, String target) async {
-    state = state.copyWith(isLoading: true, error: null, currentIndex: 0, questions: [], correctCount: 0, answeredCount: 0);
+    print('[QuizNotifier] loadQuestions started. Mode: $mode, Target: $target');
+    state = state.copyWith(isLoading: true, isInitial: false, error: null, currentIndex: 0, questions: [], correctCount: 0, answeredCount: 0);
     try {
       List<Question> data;
       switch (mode) {
         case QuizMode.exam:
+          print('[QuizNotifier] Fetching by exam...');
           data = await _repository.getQuestionsByExam(target);
           break;
         case QuizMode.category:
+          print('[QuizNotifier] Fetching by category...');
           data = await _repository.getQuestionsByCategory(target);
           data.shuffle();
           break;
         case QuizMode.mistake:
+          print('[QuizNotifier] Fetching mistakes...');
           data = await _repository.getMistakenQuestions(_userId);
           data.shuffle();
           break;
       }
+      print('[QuizNotifier] Questions loaded: ${data.length}');
+      if (!mounted) {
+        print('[QuizNotifier] Notifier disposed, skipping state update.');
+        return;
+      }
       state = state.copyWith(questions: data, isLoading: false);
-    } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+    } catch (e, stack) {
+      print('[QuizNotifier] Error loading questions: $e');
+      print(stack);
+      if (mounted) {
+        state = state.copyWith(isLoading: false, error: e.toString());
+      }
     }
   }
 
@@ -125,9 +142,16 @@ class QuizNotifier extends StateNotifier<QuizState> {
       print('Failed to save mistake: $e');
     }
   }
+  Future<void> deleteMistake(int questionId) async {
+    await _repository.deleteMistake(_userId, questionId);
+  }
+
+  Future<void> resetMistakes() async {
+    await _repository.deleteAllMistakes(_userId);
+  }
 }
 
-final quizProvider = StateNotifierProvider<QuizNotifier, QuizState>((ref) {
+final quizProvider = StateNotifierProvider.autoDispose<QuizNotifier, QuizState>((ref) {
   final repo = ref.watch(questionRepositoryProvider);
   final userId = ref.watch(userIdProvider);
   return QuizNotifier(repo, userId);

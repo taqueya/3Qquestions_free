@@ -20,14 +20,7 @@ class _QuizPageState extends ConsumerState<QuizPage> {
   String? _selectedOption;
   bool _isCorrect = false;
 
-  @override
-  void initState() {
-    super.initState();
-    // Load questions once when entering
-    Future.microtask(() => 
-      ref.read(quizProvider.notifier).loadQuestions(widget.mode, widget.target)
-    );
-  }
+
 
   void _handleOptionTap(String option, Question question) {
     if (_answered) return;
@@ -42,7 +35,11 @@ class _QuizPageState extends ConsumerState<QuizPage> {
     // Update stats
     ref.read(quizProvider.notifier).recordAnswer(isCorrect);
 
-    if (!isCorrect) {
+    if (isCorrect) {
+      if (widget.mode == QuizMode.mistake) {
+        ref.read(quizProvider.notifier).deleteMistake(question.id);
+      }
+    } else {
       ref.read(quizProvider.notifier).saveMistake(question.id);
     }
   }
@@ -60,7 +57,14 @@ class _QuizPageState extends ConsumerState<QuizPage> {
   Widget build(BuildContext context) {
     final state = ref.watch(quizProvider);
 
-    if (state.isLoading) {
+    // Trigger load if initial state (handles provider recreation on auth change)
+    if (state.isInitial && !state.isLoading) {
+      Future.microtask(() => 
+        ref.read(quizProvider.notifier).loadQuestions(widget.mode, widget.target)
+      );
+    }
+
+    if (state.isInitial || state.isLoading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
