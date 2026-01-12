@@ -42,6 +42,10 @@ class QuizState {
   final int correctCount;
   final int answeredCount;
   final bool isInitial;
+  final QuizMode? mode;
+  final String? target;
+  // 各問題の回答状態を記録: questionId -> {answered: bool, isCorrect: bool, selectedOption: String}
+  final Map<int, Map<String, dynamic>> answerResults;
 
   const QuizState({
     this.questions = const [],
@@ -51,12 +55,32 @@ class QuizState {
     this.correctCount = 0,
     this.answeredCount = 0,
     this.isInitial = false,
+    this.mode,
+    this.target,
+    this.answerResults = const {},
   });
 
   Question? get currentQuestion => 
       (questions.isNotEmpty && currentIndex < questions.length) 
       ? questions[currentIndex] 
       : null;
+
+  // 現在の問題が回答済みかどうか
+  bool get isCurrentAnswered {
+    final q = currentQuestion;
+    if (q == null) return false;
+    return answerResults.containsKey(q.id);
+  }
+
+  // 現在の問題の回答結果を取得
+  Map<String, dynamic>? get currentAnswerResult {
+    final q = currentQuestion;
+    if (q == null) return null;
+    return answerResults[q.id];
+  }
+
+  // 無回答数を算出
+  int get skippedCount => questions.length - answeredCount;
 
   QuizState copyWith({
     List<Question>? questions,
@@ -66,6 +90,9 @@ class QuizState {
     int? correctCount,
     int? answeredCount,
     bool? isInitial,
+    QuizMode? mode,
+    String? target,
+    Map<int, Map<String, dynamic>>? answerResults,
   }) {
     return QuizState(
       questions: questions ?? this.questions,
@@ -75,6 +102,9 @@ class QuizState {
       correctCount: correctCount ?? this.correctCount,
       answeredCount: answeredCount ?? this.answeredCount,
       isInitial: isInitial ?? this.isInitial,
+      mode: mode ?? this.mode,
+      target: target ?? this.target,
+      answerResults: answerResults ?? this.answerResults,
     );
   }
 }
@@ -87,7 +117,17 @@ class QuizNotifier extends StateNotifier<QuizState> {
 
   Future<void> loadQuestions(QuizMode mode, String target) async {
     print('[QuizNotifier] loadQuestions started. Mode: $mode, Target: $target');
-    state = state.copyWith(isLoading: true, isInitial: false, error: null, currentIndex: 0, questions: [], correctCount: 0, answeredCount: 0);
+    state = state.copyWith(
+      isLoading: true, 
+      isInitial: false, 
+      error: null, 
+      currentIndex: 0, 
+      questions: [], 
+      correctCount: 0, 
+      answeredCount: 0,
+      mode: mode,
+      target: target,
+    );
     try {
       List<Question> data;
       switch (mode) {
@@ -98,7 +138,6 @@ class QuizNotifier extends StateNotifier<QuizState> {
         case QuizMode.category:
           print('[QuizNotifier] Fetching by category...');
           data = await _repository.getQuestionsByCategory(target);
-          data.shuffle();
           break;
         case QuizMode.mistake:
           print('[QuizNotifier] Fetching mistakes...');
@@ -121,17 +160,130 @@ class QuizNotifier extends StateNotifier<QuizState> {
     }
   }
 
+  // 進捗から問題を読み込む（続きから解く）
+  Future<void> loadQuestionsFromProgress(
+    QuizMode mode, 
+    String target, 
+    int startIndex, 
+    int correct, 
+    int answered,
+    Map<int, Map<String, dynamic>>? answerResults,
+  ) async {
+    print('[QuizNotifier] loadQuestionsFromProgress. Mode: $mode, Target: $target, StartIndex: $startIndex');
+    state = state.copyWith(
+      isLoading: true, 
+      isInitial: false, 
+      error: null, 
+      questions: [],
+      mode: mode,
+      target: target,
+    );
+    try {
+      List<Question> data;
+      switch (mode) {
+        case QuizMode.exam:
+          data = await _repository.getQuestionsByExam(target);
+          break;
+        case QuizMode.category:
+          data = await _repository.getQuestionsByCategory(target);
+          break;
+        case QuizMode.mistake:
+          data = await _repository.getMistakenQuestions(_userId);
+          break;
+      }
+      print('[QuizNotifier] Questions loaded: ${data.length}, resuming from index: $startIndex, answers: ${answerResults?.length ?? 0}');
+      if (!mounted) return;
+      
+      state = state.copyWith(
+        questions: data, 
+        isLoading: false,
+        currentIndex: startIndex,
+        correctCount: correct,
+        answeredCount: answered,
+        answerResults: answerResults ?? {},
+      );
+    } catch (e, stack) {
+      print('[QuizNotifier] Error loading questions from progress: $e');
+      print(stack);
+      if (mounted) {
+        state = state.copyWith(isLoading: false, error: e.toString());
+      }
+    }
+  }
+
   void nextQuestion() {
-    // Allow going to (length) to signal completion (currentQuestion triggers null)
-    if (state.currentIndex < state.questions.length) {
+    if (state.currentIndex < state.questions.length - 1) {
       state = state.copyWith(currentIndex: state.currentIndex + 1);
+      _saveProgressAsync();
+    }
+  }
+
+  void prevQuestion() {
+    if (state.currentIndex > 0) {
+      state = state.copyWith(currentIndex: state.currentIndex - 1);
+      _saveProgressAsync();
+    }
+  }
+
+  // 現在の問題を完了して次へ進む（最後の問題なら終了）
+  void finishCurrentAndNext() {
+    if (state.currentIndex >= state.questions.length - 1) {
+      // 最後の問題 - currentIndexを問題数に設定して終了を示す
+      state = state.copyWith(currentIndex: state.questions.length);
+    } else {
+      state = state.copyWith(currentIndex: state.currentIndex + 1);
+      _saveProgressAsync();
     }
   }
   
-  void recordAnswer(bool isCorrect) {
+  // 回答を記録（問題IDと回答詳細を保持）
+  void recordAnswerWithDetails(int questionId, bool isCorrect, String selectedOption) {
+    // 既に回答済みの場合は記録しない
+    if (state.answerResults.containsKey(questionId)) return;
+    
+    final newResults = Map<int, Map<String, dynamic>>.from(state.answerResults);
+    newResults[questionId] = {
+      'isCorrect': isCorrect,
+      'selectedOption': selectedOption,
+    };
+    
     state = state.copyWith(
       answeredCount: state.answeredCount + 1,
       correctCount: state.correctCount + (isCorrect ? 1 : 0),
+      answerResults: newResults,
+    );
+  }
+
+  // 進捗を自動保存（非同期）
+  Future<void> _saveProgressAsync() async {
+    if (state.mode == null || state.target == null) return;
+    if (state.mode == QuizMode.mistake) return; // 苦手モードは進捗保存しない
+    
+    await _repository.saveProgress(
+      userId: _userId,
+      mode: state.mode == QuizMode.exam ? 'exam' : 'category',
+      target: state.target!,
+      currentIndex: state.currentIndex,
+      correctCount: state.correctCount,
+      answeredCount: state.answeredCount,
+      answerResults: state.answerResults,
+    );
+  }
+
+  // 進捗を即座に保存（戻るボタン用）
+  Future<void> saveProgressNow() async {
+    await _saveProgressAsync();
+  }
+
+  // 進捗を削除（完了時）
+  Future<void> deleteProgress() async {
+    if (state.mode == null || state.target == null) return;
+    if (state.mode == QuizMode.mistake) return;
+    
+    await _repository.deleteProgress(
+      userId: _userId,
+      mode: state.mode == QuizMode.exam ? 'exam' : 'category',
+      target: state.target!,
     );
   }
 
@@ -142,6 +294,7 @@ class QuizNotifier extends StateNotifier<QuizState> {
       print('Failed to save mistake: $e');
     }
   }
+  
   Future<void> deleteMistake(int questionId) async {
     await _repository.deleteMistake(_userId, questionId);
   }
@@ -169,4 +322,11 @@ final examCountsProvider = FutureProvider<List<String>>((ref) async {
 final categoriesProvider = FutureProvider<List<String>>((ref) async {
   final repo = ref.watch(questionRepositoryProvider);
   return repo.getCategories();
+});
+
+// ユーザーの全進捗を取得
+final userProgressProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+  final repo = ref.watch(questionRepositoryProvider);
+  final userId = ref.watch(userIdProvider);
+  return repo.getAllProgress(userId);
 });

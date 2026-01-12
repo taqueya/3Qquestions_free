@@ -5,18 +5,20 @@ import 'package:go_router/go_router.dart';
 class ResultPage extends StatelessWidget {
   final int correctCount;
   final int totalCount;
+  final int skippedCount;
 
   const ResultPage({
     super.key,
     required this.correctCount,
     required this.totalCount,
+    this.skippedCount = 0,
   });
 
   @override
   Widget build(BuildContext context) {
-    // Calculate percentages
     final wrongCount = totalCount - correctCount;
-    final double correctPercentage = totalCount == 0 ? 0 : (correctCount / totalCount) * 100;
+    final totalQuestions = totalCount + skippedCount;
+    final double correctPercentage = totalQuestions == 0 ? 0 : (correctCount / totalQuestions) * 100;
 
     return Scaffold(
       appBar: AppBar(title: const Text('結果発表')),
@@ -31,9 +33,16 @@ class ResultPage extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              '$correctCount / $totalCount 問正解',
+              '$correctCount / $totalQuestions 問正解',
               style: const TextStyle(fontSize: 18),
             ),
+            if (skippedCount > 0) ...[
+              const SizedBox(height: 4),
+              Text(
+                '(無回答: $skippedCount問)',
+                style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+              ),
+            ],
             const SizedBox(height: 32),
             
             // Pie Chart
@@ -44,20 +53,30 @@ class ResultPage extends StatelessWidget {
                   sectionsSpace: 2,
                   centerSpaceRadius: 40,
                   sections: [
-                    PieChartSectionData(
-                      color: Colors.green,
-                      value: correctCount.toDouble(),
-                      title: '$correctCount問',
-                      radius: 60,
-                      titleStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
-                    ),
-                    PieChartSectionData(
-                      color: Colors.red,
-                      value: wrongCount.toDouble(),
-                      title: '$wrongCount問',
-                      radius: 60,
-                      titleStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
-                    ),
+                    if (correctCount > 0)
+                      PieChartSectionData(
+                        color: Colors.green,
+                        value: correctCount.toDouble(),
+                        title: '正解\n$correctCount問',
+                        radius: 60,
+                        titleStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+                      ),
+                    if (wrongCount > 0)
+                      PieChartSectionData(
+                        color: Colors.red,
+                        value: wrongCount.toDouble(),
+                        title: '不正解\n$wrongCount問',
+                        radius: 60,
+                        titleStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+                      ),
+                    if (skippedCount > 0)
+                      PieChartSectionData(
+                        color: Colors.grey,
+                        value: skippedCount.toDouble(),
+                        title: '無回答\n$skippedCount問',
+                        radius: 60,
+                        titleStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+                      ),
                   ],
                 ),
               ),
@@ -67,7 +86,6 @@ class ResultPage extends StatelessWidget {
             
             ElevatedButton(
               onPressed: () {
-                // Pop back to home
                 context.go('/'); 
               },
               style: ElevatedButton.styleFrom(

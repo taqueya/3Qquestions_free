@@ -155,7 +155,7 @@ class _AuthPageState extends State<AuthPage> {
       }
 
       // Native (Android/iOS): Use GoogleSignIn package
-      const webClientId = '98809686126-i239d63enne5kb94tdf2c1nj7gp8c6di.apps.googleusercontent.com';
+      const webClientId = '98809686126-2do7qvji82p6joocmkto0b4g0a2si178.apps.googleusercontent.com';
       const iosClientId = '98809686126-fsd4f6o8f6185opt6cdg53pba3996rpt.apps.googleusercontent.com';
 
       final GoogleSignIn googleSignIn = GoogleSignIn(

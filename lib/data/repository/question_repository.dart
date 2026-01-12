@@ -11,7 +11,7 @@ class QuestionRepository {
   Future<List<Question>> getQuestionsByExam(String examCount) async {
     try {
       final response = await _client
-          .from('questions') // テーブル名を直接指定(定数がなければ)
+          .from(AppConstants.questionsTable) // テーブル名を直接指定(定数がなければ)
           .select()
           .eq('exam_count', examCount)
           .order('question_number', ascending: true)
@@ -28,13 +28,20 @@ class QuestionRepository {
   }
 
   // --- 2. 問題を「カテゴリー」で取得 ---
-  Future<List<Question>> getQuestionsByCategory(String category) async {
+  // examFilter: 無料ユーザーの場合、特定の回のみをフィルタリング
+  Future<List<Question>> getQuestionsByCategory(String category, {String? examFilter}) async {
     try {
-      final response = await _client
-          .from('questions')
+      var query = _client
+          .from(AppConstants.questionsTable)
           .select()
-          .eq('category', category)
-          .timeout(const Duration(seconds: 10));
+          .eq('category', category);
+      
+      // 無料ユーザーの場合、特定の回のみに制限
+      if (examFilter != null) {
+        query = query.eq('exam_count', examFilter);
+      }
+      
+      final response = await query.timeout(const Duration(seconds: 10));
 
       final data = response as List<dynamic>? ?? [];
       final questions = data.map((json) => Question.fromJson(json)).toList();
@@ -53,7 +60,7 @@ class QuestionRepository {
     try {
       // 3-1. 間違えたIDリストを取得
       final mistakeResponse = await _client
-          .from('user_mistakes')
+          .from(AppConstants.userMistakesTable)
           .select('question_id')
           .eq('user_id', userId)
           .timeout(const Duration(seconds: 10));
@@ -65,7 +72,7 @@ class QuestionRepository {
 
       // 3-2. そのIDの問題文を取得
       final response = await _client
-          .from('questions')
+          .from(AppConstants.questionsTable)
           .select()
           .inFilter('id', questionIds); // ここは inFilter でOK
 
@@ -108,7 +115,7 @@ class QuestionRepository {
   Future<List<String>> getExamCounts() async {
     try {
       final response = await _client
-          .from('questions')
+          .from(AppConstants.questionsTable)
           .select('exam_count');
 
       // 【ここが重要】responseがnullのときにクラッシュしないよう ?? [] を追加
@@ -133,7 +140,7 @@ class QuestionRepository {
   Future<List<String>> getCategories() async {
     try {
       final response = await _client
-          .from('questions')
+          .from(AppConstants.questionsTable)
           .select('category');
 
       final data = response as List<dynamic>? ?? [];
@@ -197,6 +204,98 @@ class QuestionRepository {
     } catch (e) {
       print('Error deleting all mistakes: $e');
       rethrow;
+    }
+  }
+
+  // --- 9. 進捗を保存 ---
+  Future<void> saveProgress({
+    required String userId,
+    required String mode,
+    required String target,
+    required int currentIndex,
+    required int correctCount,
+    required int answeredCount,
+    Map<int, Map<String, dynamic>>? answerResults,
+  }) async {
+    try {
+      // answerResultsをJSON形式に変換（キーをStringに変換）
+      Map<String, dynamic>? answerResultsJson;
+      if (answerResults != null) {
+        answerResultsJson = answerResults.map(
+          (key, value) => MapEntry(key.toString(), value),
+        );
+      }
+      
+      await _client.from(AppConstants.userProgressTable).upsert(
+        {
+          'user_id': userId,
+          'mode': mode,
+          'target': target,
+          'current_index': currentIndex,
+          'correct_count': correctCount,
+          'answered_count': answeredCount,
+          'answer_results': answerResultsJson,
+          'updated_at': DateTime.now().toIso8601String(),
+        },
+        onConflict: 'user_id,mode,target',
+      );
+      print('[Repo] Progress saved: mode=$mode, target=$target, index=$currentIndex, answers=${answerResults?.length ?? 0}');
+    } catch (e) {
+      print('Error saving progress: $e');
+    }
+  }
+
+  // --- 10. 進捗を取得 ---
+  Future<Map<String, dynamic>?> getProgress({
+    required String userId,
+    required String mode,
+    required String target,
+  }) async {
+    try {
+      final response = await _client
+          .from(AppConstants.userProgressTable)
+          .select()
+          .eq('user_id', userId)
+          .eq('mode', mode)
+          .eq('target', target)
+          .maybeSingle();
+      return response;
+    } catch (e) {
+      print('Error getting progress: $e');
+      return null;
+    }
+  }
+
+  // --- 11. ユーザーの全進捗を取得 ---
+  Future<List<Map<String, dynamic>>> getAllProgress(String userId) async {
+    try {
+      final response = await _client
+          .from(AppConstants.userProgressTable)
+          .select()
+          .eq('user_id', userId)
+          .order('updated_at', ascending: false);
+      return List<Map<String, dynamic>>.from(response ?? []);
+    } catch (e) {
+      print('Error getting all progress: $e');
+      return [];
+    }
+  }
+
+  // --- 12. 進捗を削除 ---
+  Future<void> deleteProgress({
+    required String userId,
+    required String mode,
+    required String target,
+  }) async {
+    try {
+      await _client
+          .from(AppConstants.userProgressTable)
+          .delete()
+          .eq('user_id', userId)
+          .eq('mode', mode)
+          .eq('target', target);
+    } catch (e) {
+      print('Error deleting progress: $e');
     }
   }
 }

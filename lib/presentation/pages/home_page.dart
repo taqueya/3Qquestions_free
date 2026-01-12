@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../domain/providers.dart';
+
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
@@ -15,17 +17,49 @@ class _HomePageState extends ConsumerState<HomePage> {
   String? selectedCategory;
 
   @override
+  void initState() {
+    super.initState();
+    // ホームページ表示時に進捗を再読み込み
+    Future.microtask(() {
+      ref.invalidate(userProgressProvider);
+    });
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+  }
+
+
+  @override
   Widget build(BuildContext context) {
     final examCountsAsync = ref.watch(examCountsProvider);
     final categoriesAsync = ref.watch(categoriesProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('知財検定2級 過去問道場')),
+      appBar: AppBar(
+        title: const Text(
+          '知財管理技能検定3級(学科)\n過去問アカデミア',
+          style: TextStyle(fontWeight: FontWeight.bold),
+          textAlign: TextAlign.center,
+        ),
+        actions: [
+          // ログアウトボタン
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: () => _showLogoutDialog(context),
+            tooltip: 'ログアウト',
+          ),
+        ],
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // 無料版バナー
+
+
             // 1. Exam Mode
             Card(
               child: Padding(
@@ -39,8 +73,15 @@ class _HomePageState extends ConsumerState<HomePage> {
                         isExpanded: true,
                         value: selectedExam,
                         hint: const Text('回数を選択'),
-                        items: exams.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
-                        onChanged: (val) => setState(() => selectedExam = val),
+                        items: exams.map((e) {
+                          return DropdownMenuItem(
+                            value: e,
+                            child: Text(e),
+                          );
+                        }).toList(),
+                        onChanged: (val) {
+                          setState(() => selectedExam = val);
+                        },
                       ),
                       loading: () => const CircularProgressIndicator(),
                       error: (err, stack) => Text('Error: $err'),
@@ -57,6 +98,41 @@ class _HomePageState extends ConsumerState<HomePage> {
                             },
                       child: const Text('スタート'),
                     ),
+                    // 続きから解くボタン（進捗がある場合 - 最新1件のみ）
+                    ref.watch(userProgressProvider).when(
+                      data: (progressList) {
+                        final examProgress = progressList.where((p) => p['mode'] == 'exam').toList();
+                        if (examProgress.isEmpty) return const SizedBox.shrink();
+                        
+                        final p = examProgress.first; // 最新の1件のみ
+                        return Column(
+                          children: [
+                            const SizedBox(height: 16),
+                            const Divider(),
+                            const SizedBox(height: 8),
+                            const Text('途中の問題', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+                            const SizedBox(height: 8),
+                            OutlinedButton.icon(
+                              icon: const Icon(Icons.play_circle_outline),
+                              label: Text('${p['target']} (${(p['current_index'] as int) + 1}問目から)'),
+                              onPressed: () {
+                                context.push('/quiz', extra: {
+                                  'mode': QuizMode.exam,
+                                  'target': p['target'],
+                                  'resume': true,
+                                  'currentIndex': p['current_index'],
+                                  'correctCount': p['correct_count'],
+                                  'answeredCount': p['answered_count'],
+                                  'answerResults': p['answer_results'],
+                                });
+                              },
+                            ),
+                          ],
+                        );
+                      },
+                      loading: () => const SizedBox.shrink(),
+                      error: (_, __) => const SizedBox.shrink(),
+                    ),
                   ],
                 ),
               ),
@@ -69,7 +145,13 @@ class _HomePageState extends ConsumerState<HomePage> {
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
                   children: [
-                    const Text('分野別で解く', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Text('分野別で解く', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+
+                      ],
+                    ),
                     const SizedBox(height: 16),
                     categoriesAsync.when(
                       data: (cats) => DropdownButton<String>(
@@ -93,6 +175,41 @@ class _HomePageState extends ConsumerState<HomePage> {
                               });
                             },
                       child: const Text('スタート'),
+                    ),
+                    // 続きから解くボタン（進捗がある場合 - 最新1件のみ）
+                    ref.watch(userProgressProvider).when(
+                      data: (progressList) {
+                        final categoryProgress = progressList.where((p) => p['mode'] == 'category').toList();
+                        if (categoryProgress.isEmpty) return const SizedBox.shrink();
+                        
+                        final p = categoryProgress.first; // 最新の1件のみ
+                        return Column(
+                          children: [
+                            const SizedBox(height: 16),
+                            const Divider(),
+                            const SizedBox(height: 8),
+                            const Text('途中の問題', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+                            const SizedBox(height: 8),
+                            OutlinedButton.icon(
+                              icon: const Icon(Icons.play_circle_outline),
+                              label: Text('${p['target']} (${(p['current_index'] as int) + 1}問目から)'),
+                              onPressed: () {
+                                context.push('/quiz', extra: {
+                                  'mode': QuizMode.category,
+                                  'target': p['target'],
+                                  'resume': true,
+                                  'currentIndex': p['current_index'],
+                                  'correctCount': p['correct_count'],
+                                  'answeredCount': p['answered_count'],
+                                  'answerResults': p['answer_results'],
+                                });
+                              },
+                            ),
+                          ],
+                        );
+                      },
+                      loading: () => const SizedBox.shrink(),
+                      error: (_, __) => const SizedBox.shrink(),
                     ),
                   ],
                 ),
@@ -163,4 +280,37 @@ class _HomePageState extends ConsumerState<HomePage> {
       ),
     );
   }
+
+
+
+  void _showLogoutDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('ログアウト'),
+        content: const Text('ログアウトしますか？'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('キャンセル'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              
+              // 課金状態をクリア (不要)
+              
+              // Supabaseからログアウト
+              await Supabase.instance.client.auth.signOut();
+              
+              // ログイン画面に遷移（GoRouterのリダイレクトで自動的に行われる）
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('ログアウト', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
 }
+
