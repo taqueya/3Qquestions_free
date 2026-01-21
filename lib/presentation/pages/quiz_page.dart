@@ -94,7 +94,8 @@ class _QuizPageState extends ConsumerState<QuizPage> with WidgetsBindingObserver
 
     // Trigger load if initial state (handles provider recreation on auth change)
     if (state.isInitial && !state.isLoading) {
-      Future.microtask(() {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
         if (widget.resume && widget.startIndex != null) {
           // 続きから解く
           ref.read(quizProvider.notifier).loadQuestionsFromProgress(
@@ -139,10 +140,11 @@ class _QuizPageState extends ConsumerState<QuizPage> with WidgetsBindingObserver
       
       // Finished
       // Schedule navigation after build
-      Future.microtask(() async {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!mounted) return;
         // 完了時に進捗を削除
         await ref.read(quizProvider.notifier).deleteProgress();
-        if (context.mounted) {
+        if (mounted && context.mounted) {
            context.go('/result', extra: {
              'correctCount': state.correctCount,
              'totalCount': state.answeredCount,

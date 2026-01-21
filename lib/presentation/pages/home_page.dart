@@ -20,8 +20,10 @@ class _HomePageState extends ConsumerState<HomePage> {
   void initState() {
     super.initState();
     // ホームページ表示時に進捗を再読み込み
-    Future.microtask(() {
-      ref.invalidate(userProgressProvider);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ref.invalidate(userProgressProvider);
+      }
     });
   }
 

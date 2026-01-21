@@ -1,0 +1,59 @@
+﻿Analyzing 3Qquestions_free...                                   
+
+   info - Don't invoke 'print' in production code - lib\data\repository\question_repository.dart:25:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\data\repository\question_repository.dart:53:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\data\repository\question_repository.dart:82:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\data\repository\question_repository.dart:91:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\data\repository\question_repository.dart:107:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\data\repository\question_repository.dart:109:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\data\repository\question_repository.dart:134:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\data\repository\question_repository.dart:167:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\data\repository\question_repository.dart:192:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\data\repository\question_repository.dart:205:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\data\repository\question_repository.dart:242:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\data\repository\question_repository.dart:244:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\data\repository\question_repository.dart:264:7 - avoid_print
+warning - The left operand can't be null, so the right operand is never executed - lib\data\repository\question_repository.dart:277:58 - dead_null_aware_expression
+   info - Don't invoke 'print' in production code - lib\data\repository\question_repository.dart:279:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\data\repository\question_repository.dart:298:7 - avoid_print
+warning - Unused import: '../core/constants.dart' - lib\domain\providers.dart:5:8 - unused_import
+   info - Don't invoke 'print' in production code - lib\domain\providers.dart:119:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\domain\providers.dart:135:11 - avoid_print
+   info - Don't invoke 'print' in production code - lib\domain\providers.dart:139:11 - avoid_print
+   info - Don't invoke 'print' in production code - lib\domain\providers.dart:143:11 - avoid_print
+   info - Don't invoke 'print' in production code - lib\domain\providers.dart:148:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\domain\providers.dart:150:9 - avoid_print
+   info - Don't invoke 'print' in production code - lib\domain\providers.dart:155:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\domain\providers.dart:156:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\domain\providers.dart:172:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\domain\providers.dart:194:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\domain\providers.dart:206:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\domain\providers.dart:207:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\domain\providers.dart:294:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\main.dart:28:5 - avoid_print
+   info - Use 'const' with the constructor to improve performance - lib\presentation\pages\home_page.dart:150:21 - prefer_const_constructors
+   info - Use 'const' literals as arguments to constructors of '@immutable' classes - lib\presentation\pages\home_page.dart:152:33 - prefer_const_literals_to_create_immutables
+   info - Unnecessary use of 'toList' in a spread - lib\presentation\pages\quiz_page.dart:244:16 - unnecessary_to_list_in_spreads
+   info - The imported package 'ip_skills_level2' isn't a dependency of the importing package - test\widget_test.dart:11:8 - depend_on_referenced_packages
+  error - Target of URI doesn't exist: 'package:ip_skills_level2/main.dart' - test\widget_test.dart:11:8 - uri_does_not_exist
+  error - The name 'MyApp' isn't a class - test\widget_test.dart:16:35 - creation_with_non_type
+
+flutter : 37 issues fo
+und. (ran in 14.7s)
+発生場所 行:1 文字:1
++ flutter analyze --no
+-pub 2>&1 | Out-File -
+FilePath analyze_outpu
+t.txt ...
++ ~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~
+    + CategoryInfo    
+          : NotSpeci  
+  fied: (37 issues    
+ found. (ran in 14    
+.7s):String) [],     R
+emoteException
+    + FullyQualifiedE 
+   rrorId : NativeCo  
+  mmandError
+ 
