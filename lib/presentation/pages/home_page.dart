@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../domain/providers.dart';
 
@@ -301,6 +302,9 @@ class _HomePageState extends ConsumerState<HomePage> {
               Navigator.pop(context);
               
               // 課金状態をクリア (不要)
+              
+              // Googleのセッションをクリア（次回ログイン時にアカウント選択可能にする）
+              await GoogleSignIn().signOut();
               
               // Supabaseからログアウト
               await Supabase.instance.client.auth.signOut();
