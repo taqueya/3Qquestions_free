@@ -6,9 +6,20 @@ class MainActivity : FlutterFragmentActivity() {
     override fun onResume() {
         super.onResume()
         // スリープ復帰時にFlutter Surfaceを強制再描画してブラックアウトを防止
-        window?.decorView?.postDelayed({
-            window?.decorView?.requestLayout()
-            window?.decorView?.invalidate()
-        }, 100)
+        // 複数回の遅延再描画で確実に復帰させる
+        window?.decorView?.let { decorView ->
+            decorView.postDelayed({
+                decorView.requestLayout()
+                decorView.invalidate()
+            }, 50)
+            decorView.postDelayed({
+                decorView.requestLayout()
+                decorView.invalidate()
+            }, 150)
+            decorView.postDelayed({
+                decorView.requestLayout()
+                decorView.invalidate()
+            }, 300)
+        }
     }
 }

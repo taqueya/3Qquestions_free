@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -133,7 +134,24 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     super.didChangeAppLifecycleState(state);
     if (state == AppLifecycleState.resumed) {
       // スリープ復帰時にUIを強制再描画してブラックアウトを防止
+      // 即時再描画
       setState(() {});
+      
+      // 複数回の遅延再描画で確実に復帰
+      Future.delayed(const Duration(milliseconds: 50), () {
+        if (mounted) setState(() {});
+      });
+      Future.delayed(const Duration(milliseconds: 150), () {
+        if (mounted) setState(() {});
+      });
+      Future.delayed(const Duration(milliseconds: 300), () {
+        if (mounted) setState(() {});
+      });
+      
+      // フレーム終了後にも再描画をスケジュール
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() {});
+      });
     }
   }
 

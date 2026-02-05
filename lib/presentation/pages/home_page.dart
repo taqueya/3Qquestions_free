@@ -13,13 +13,14 @@ class HomePage extends ConsumerStatefulWidget {
   ConsumerState<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends ConsumerState<HomePage> {
+class _HomePageState extends ConsumerState<HomePage> with WidgetsBindingObserver {
   String? selectedExam;
   String? selectedCategory;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     // ホームページ表示時に進捗を再読み込み
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
@@ -30,7 +31,20 @@ class _HomePageState extends ConsumerState<HomePage> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    // スリープ復帰時にUIを強制再描画
+    if (state == AppLifecycleState.resumed) {
+      if (mounted) setState(() {});
+      Future.delayed(const Duration(milliseconds: 100), () {
+        if (mounted) setState(() {});
+      });
+    }
   }
 
 
