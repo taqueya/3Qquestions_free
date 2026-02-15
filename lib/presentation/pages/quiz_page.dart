@@ -49,12 +49,9 @@ class _QuizPageState extends ConsumerState<QuizPage> with WidgetsBindingObserver
     if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
       ref.read(quizProvider.notifier).saveProgressNow();
     }
-    // スリープ復帰時にUIを強制再描画
+    // スリープ復帰時にUIを再描画
     if (state == AppLifecycleState.resumed) {
       if (mounted) setState(() {});
-      Future.delayed(const Duration(milliseconds: 100), () {
-        if (mounted) setState(() {});
-      });
     }
   }
 
